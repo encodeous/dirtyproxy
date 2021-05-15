@@ -1,8 +1,8 @@
 ﻿using System.IO;
 using System.Linq;
-using dirtyproxylib;
+using Encodeous.DirtyProxy;
 
-var scraper = new DirtyProxy(DirtyProxy.DefaultList);
+var scraper = new DirtyProxy(DirtyProxy.DefaultList, checkProxies: false);
 var proxies = await scraper.ScrapeAsync();
 
 await File.WriteAllLinesAsync("validProxies.txt", proxies.ValidProxies.Select(x=>x.ToString()));

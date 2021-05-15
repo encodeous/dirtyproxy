@@ -2,7 +2,7 @@
 using System.IO;
 using System.Net.Http;
 
-namespace dirtyproxylib
+namespace Encodeous.DirtyProxy
 {
     public class DiscoveryWrapper
     {

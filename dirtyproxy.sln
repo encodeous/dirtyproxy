@@ -2,7 +2,7 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "dirtyproxy", "dirtyproxy\dirtyproxy.csproj", "{F4088AE6-9CDA-477B-8F58-58B7507C0DEE}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "dirtyproxylib", "dirtyproxylib\dirtyproxylib.csproj", "{720E550E-9DCB-4677-98B6-33138D0124B1}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Encodeous.DirtyProxy", "Encodeous.DirtyProxy\Encodeous.DirtyProxy.csproj", "{720E550E-9DCB-4677-98B6-33138D0124B1}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

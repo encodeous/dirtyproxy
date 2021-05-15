@@ -4,7 +4,7 @@ using System.Net;
 using System.Threading;
 using System.Threading.Channels;
 
-namespace dirtyproxylib
+namespace Encodeous.DirtyProxy
 {
     public class ProxyStorage
     {

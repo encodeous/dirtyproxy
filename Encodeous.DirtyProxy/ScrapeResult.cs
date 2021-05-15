@@ -1,7 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Net;
 
-namespace dirtyproxylib
+namespace Encodeous.DirtyProxy
 {
     public class ScrapeResult
     {
