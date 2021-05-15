@@ -56,6 +56,7 @@ namespace dirtyproxylib
         private CancellationToken _appLifetime;
         private string[] _proxySources;
         private string _checkUrl, _agent;
+
         /// <summary>
         /// Configure a new Proxy Scraper
         /// </summary>
@@ -63,8 +64,10 @@ namespace dirtyproxylib
         /// <param name="userAgent">User agent used</param>
         /// <param name="checkProxies">Check if the proxies can connect to a url</param>
         /// <param name="checkUrl">Url to check against</param>
+        /// <param name="scrapeTimeout">Timeout (seconds) for each proxy source</param>
+        /// <param name="checkTimeout">Timeout (seconds) for each proxy check request</param>
         public DirtyProxy(string[] sources, string userAgent = "Mozilla/5.0 (Windows NT 10.0; WOW64; Trident/7.0; rv:11.0) like Gecko",
-            bool checkProxies = true, string checkUrl = "http://www.youtube.com")
+            bool checkProxies = true, string checkUrl = "http://www.youtube.com", double scrapeTimeout = 5, double checkTimeout = 10)
         {
             _checkUrl = checkUrl;
             _agent = userAgent;
@@ -77,7 +80,7 @@ namespace dirtyproxylib
             _client.DefaultRequestHeaders.UserAgent.ParseAdd(_agent);
             if (checkProxies)
             {
-                for (int i = 0; i < 200; i++)
+                for (int i = 0; i < 300; i++)
                 {
                     Task.Run(async () =>
                     {
@@ -87,7 +90,6 @@ namespace dirtyproxylib
                             var prox = await _storage.VerificationQueue.Reader.ReadAsync(_appLifetime);
                             if (await IsValid(prox, wc))
                             {
-                                Console.WriteLine(prox.ToString());
                                 _storage.VerifiedProxies.Enqueue(prox);
                             }
                             _storage.Proxies.Enqueue(prox);
@@ -128,6 +130,8 @@ namespace dirtyproxylib
 
         private SemaphoreSlim _semaphoreSlim = new SemaphoreSlim(1, 1);
 
+        private volatile bool isAdding = false;
+        
         /// <summary>
         /// Start scraping with the configured parameters. Each instance can only have one concurrent scraper.
         /// </summary>
@@ -139,6 +143,19 @@ namespace dirtyproxylib
             var goodSources = new List<string>();
             
             _storage.VerifiedProxies = new ConcurrentQueue<IPEndPoint>();
+
+            isAdding = true;
+            
+            var task = Task.Run(async () =>
+            {
+                while (!_appLifetime.IsCancellationRequested && (_storage.VerificationQueue.Reader.Count > 0 ||
+                                                                 _storage.DiscoveryQueue.Reader.Count > 0 || isAdding))
+                {
+                    Console.WriteLine(
+                        $"{_storage.VerifiedProxies.Count} valid, {_storage.VerificationQueue.Reader.Count} in queue, {_storage.Proxies.Count} in total.");
+                    await Task.Delay(1000, _appLifetime);
+                }
+            }, _appLifetime);
             
             foreach (var src in _proxySources.Distinct())
             {
@@ -151,11 +168,9 @@ namespace dirtyproxylib
                 }), _appLifetime);
             }
 
-            while (!_appLifetime.IsCancellationRequested && (_storage.VerificationQueue.Reader.Count > 0 || _storage.DiscoveryQueue.Reader.Count > 0))
-            {
-                Console.WriteLine($"{_storage.VerifiedProxies.Count} valid, {_storage.VerificationQueue} in queue, {_storage.Proxies.Count} in total.");
-                await Task.Delay(1000, _appLifetime);
-            }
+            isAdding = false;
+
+            await task;
 
             return new ScrapeResult()
             {
