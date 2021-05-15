@@ -46,8 +46,7 @@ var scraper = new DirtyProxy(sources);
 
 ```csharp
 // You can use any user agent you want!
-var scraper = new DirtyProxy(DirtyProxy.DefaultList, 
-    "Your user agent");
+var scraper = new DirtyProxy(DirtyProxy.DefaultList, "Your user agent");
 var proxies = await scraper.ScrapeAsync();
 
 ...
