@@ -2,8 +2,7 @@
 using System.Linq;
 using dirtyproxylib;
 
-// Configure custom timeouts
-var scraper = new DirtyProxy(DirtyProxy.DefaultList, checkTimeout: 5, scrapeTimeout: 2);
+var scraper = new DirtyProxy(DirtyProxy.DefaultList);
 var proxies = await scraper.ScrapeAsync();
 
 await File.WriteAllLinesAsync("validProxies.txt", proxies.ValidProxies.Select(x=>x.ToString()));

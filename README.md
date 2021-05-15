@@ -47,10 +47,10 @@ var scraper = new DirtyProxy(sources);
 ```csharp
 // You can use any user agent you want!
 var scraper = new DirtyProxy(DirtyProxy.DefaultList, 
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.212 Safari/537.36 Edg/90.0.818.62");
+    "Your user agent");
 var proxies = await scraper.ScrapeAsync();
 
----
+...
 ```
 
 ### Using Custom Request Timeouts
@@ -67,9 +67,7 @@ var proxies = await scraper.ScrapeAsync();
 
 ```csharp
 // Disable proxy checking
-var scraper = new DirtyProxy(DirtyProxy.DefaultList, 
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.212 Safari/537.36 Edg/90.0.818.62",
-    false);
+var scraper = new DirtyProxy(DirtyProxy.DefaultList, checkProxies: false);
 var proxies = await scraper.ScrapeAsync();
 
 ...
@@ -79,10 +77,7 @@ var proxies = await scraper.ScrapeAsync();
 
 ```csharp
 // Make sure the proxies can successfully connect to a url
-var scraper = new DirtyProxy(DirtyProxy.DefaultList, 
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.212 Safari/537.36 Edg/90.0.818.62",
-    true,
-    "https://google.ca");
+var scraper = new DirtyProxy(DirtyProxy.DefaultList, checkUrl: "https://google.ca");
 var proxies = await scraper.ScrapeAsync();
 
 ...
