@@ -1,5 +1,7 @@
 # DirtyProxy
 
+![Nuget Url](https://img.shields.io/nuget/v/Encodeous.DirtyProxy)
+
 A quick and easy proxy scraper!
 
 *That does not mean it lacks features ;)*

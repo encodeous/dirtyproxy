@@ -5,21 +5,16 @@
     </PropertyGroup>
 
     <PropertyGroup>
+        <Title>DirtyProxy - Proxy Scraper</Title>
+        <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
         <PackageId>Encodeous.DirtyProxy</PackageId>
         <Version>1.0.0</Version>
         <Authors>Encodeous</Authors>
         <RepositoryUrl>https://github.com/encodeous/dirtyproxy</RepositoryUrl>
+        <PackageProjectUrl>https://github.com/encodeous/dirtyproxy</PackageProjectUrl>
         <Description>Quick and dirty proxy scraper</Description>
         <PackageTags>Proxy;Scraper;Web;Searcher;</PackageTags>
+        <PackageLicenseExpression>MIT</PackageLicenseExpression>
     </PropertyGroup>
-    
-    <ItemGroup>
-      <PackageReference Include="AngleSharp" Version="0.15.0" />
-      <PackageReference Include="HttpToSocks5Proxy" Version="1.4.0" />
-      <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="5.0.1" />
-      <PackageReference Include="Microsoft.Extensions.Hosting" Version="5.0.0" />
-      <PackageReference Include="Microsoft.Extensions.Http" Version="5.0.0" />
-      <PackageReference Include="YamlDotNet" Version="11.1.1" />
-    </ItemGroup>
 
 </Project>
