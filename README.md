@@ -22,7 +22,7 @@ A quick and easy proxy scraper!
 ### Using Default Parameters
 
 ```csharp
-var scraper = new DirtyProxy(DirtyProxy.DefaultList);
+var scraper = new ProxyScraper(ProxyScraper.DefaultList);
 var proxies = await scraper.ScrapeAsync();
 
 await File.WriteAllLinesAsync("validProxies.txt", proxies.ValidProxies.Select(x=>x.ToString()));
@@ -39,7 +39,7 @@ var sources = new[]
     "https://other.source.proxy.list"
 };
 // You can use your own list, or the list included by default!
-var scraper = new DirtyProxy(sources);
+var scraper = new ProxyScraper(sources);
 
 ...
 ```
@@ -48,7 +48,7 @@ var scraper = new DirtyProxy(sources);
 
 ```csharp
 // You can use any user agent you want!
-var scraper = new DirtyProxy(DirtyProxy.DefaultList, "Your user agent");
+var scraper = new ProxyScraper(ProxyScraper.DefaultList, "Your user agent");
 var proxies = await scraper.ScrapeAsync();
 
 ...
@@ -57,7 +57,7 @@ var proxies = await scraper.ScrapeAsync();
 ### Using Custom Request Timeouts
 
 ```csharp
-var scraper = new DirtyProxy(DirtyProxy.DefaultList, checkTimeout: 5, scrapeTimeout: 2);
+var scraper = new ProxyScraper(ProxyScraper.DefaultList, checkTimeout: 5, scrapeTimeout: 2);
 var proxies = await scraper.ScrapeAsync();
 
 ...
@@ -68,7 +68,7 @@ var proxies = await scraper.ScrapeAsync();
 
 ```csharp
 // Disable proxy checking
-var scraper = new DirtyProxy(DirtyProxy.DefaultList, checkProxies: false);
+var scraper = new ProxyScraper(ProxyScraper.DefaultList, checkProxies: false);
 var proxies = await scraper.ScrapeAsync();
 
 ...
@@ -78,7 +78,7 @@ var proxies = await scraper.ScrapeAsync();
 
 ```csharp
 // Make sure the proxies can successfully connect to a url
-var scraper = new DirtyProxy(DirtyProxy.DefaultList, checkUrl: "https://google.ca");
+var scraper = new ProxyScraper(ProxyScraper.DefaultList, checkUrl: "https://google.ca");
 var proxies = await scraper.ScrapeAsync();
 
 ...

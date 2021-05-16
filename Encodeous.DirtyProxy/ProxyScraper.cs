@@ -12,7 +12,7 @@ using System.Threading.Tasks;
 
 namespace Encodeous.DirtyProxy
 {
-    public class DirtyProxy : IDisposable
+    public class ProxyScraper : IDisposable
     {
         // Stored in base 64 to reduce LOC
         /// <summary>
@@ -66,7 +66,7 @@ namespace Encodeous.DirtyProxy
         /// <param name="checkUrl">Url to check against</param>
         /// <param name="scrapeTimeout">Timeout (seconds) for each proxy source</param>
         /// <param name="checkTimeout">Timeout (seconds) for each proxy check request</param>
-        public DirtyProxy(string[] sources, string userAgent = "Mozilla/5.0 (Windows NT 10.0; WOW64; Trident/7.0; rv:11.0) like Gecko",
+        public ProxyScraper(string[] sources, string userAgent = "Mozilla/5.0 (Windows NT 10.0; WOW64; Trident/7.0; rv:11.0) like Gecko",
             bool checkProxies = true, string checkUrl = "http://www.youtube.com", double scrapeTimeout = 5, double checkTimeout = 10)
         {
             _checkUrl = checkUrl;
