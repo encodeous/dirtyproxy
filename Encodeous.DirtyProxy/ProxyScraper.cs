@@ -14,6 +14,15 @@ namespace Encodeous.DirtyProxy
 {
     public class ProxyScraper : IDisposable
     {
+        /// <summary>
+        /// Number of tasks to run for proxy checking. This is a high number due to the fact that these tasks are mostly waiting
+        /// </summary>
+        public static int CheckTasks = 300;
+        /// <summary>
+        /// Default user agent
+        /// </summary>
+        public const string DefaultAgent =
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.212 Safari/537.36";
         // Stored in base 64 to reduce LOC
         /// <summary>
         /// A list of valid sources (as of 5/15/2021)
@@ -56,6 +65,7 @@ namespace Encodeous.DirtyProxy
         private CancellationToken _appLifetime;
         private string[] _proxySources;
         private string _checkUrl, _agent;
+        private bool _isVerifying;
 
         /// <summary>
         /// Configure a new Proxy Scraper
@@ -66,9 +76,10 @@ namespace Encodeous.DirtyProxy
         /// <param name="checkUrl">Url to check against</param>
         /// <param name="scrapeTimeout">Timeout (seconds) for each proxy source</param>
         /// <param name="checkTimeout">Timeout (seconds) for each proxy check request</param>
-        public ProxyScraper(string[] sources, string userAgent = "Mozilla/5.0 (Windows NT 10.0; WOW64; Trident/7.0; rv:11.0) like Gecko",
+        public ProxyScraper(string[] sources, string userAgent = DefaultAgent,
             bool checkProxies = true, string checkUrl = "http://www.youtube.com", double scrapeTimeout = 5, double checkTimeout = 10)
         {
+            _isVerifying = checkProxies;
             _checkUrl = checkUrl;
             _agent = userAgent;
             _proxySources = sources;
@@ -76,11 +87,11 @@ namespace Encodeous.DirtyProxy
             _appLifetime = _appLifetimeSource.Token;
             _storage = new ProxyStorage();
             _client = new HttpClient();
-            _client.Timeout = TimeSpan.FromSeconds(5);
+            _client.Timeout = TimeSpan.FromSeconds(scrapeTimeout);
             _client.DefaultRequestHeaders.UserAgent.ParseAdd(_agent);
             if (checkProxies)
             {
-                for (int i = 0; i < 300; i++)
+                for (int i = 0; i < CheckTasks; i++)
                 {
                     Task.Run(async () =>
                     {
@@ -88,7 +99,7 @@ namespace Encodeous.DirtyProxy
                         while (!_appLifetime.IsCancellationRequested)
                         {
                             var prox = await _storage.VerificationQueue.Reader.ReadAsync(_appLifetime);
-                            if (await IsValid(prox, wc))
+                            if (await IsValid(prox, wc, scrapeTimeout))
                             {
                                 _storage.VerifiedProxies.Enqueue(prox);
                             }
@@ -127,16 +138,77 @@ namespace Encodeous.DirtyProxy
                 });
             }
         }
+        
+        /// <summary>
+        /// Configure a new Proxy Scraper with a custom proxy checker
+        /// </summary>
+        /// <param name="sources">Proxy Lists to scrape from</param>
+        /// <param name="proxyChecker">Custom proxy checker</param>
+        /// <param name="userAgent">User agent used</param>
+        /// <param name="scrapeTimeout">Timeout (seconds) for each proxy source</param>
+        public ProxyScraper(string[] sources, Func<IPEndPoint, ValueTask<bool>> proxyChecker, string userAgent = DefaultAgent, double scrapeTimeout = 5)
+        {
+            _isVerifying = true;
+            _agent = userAgent;
+            _proxySources = sources;
+            _appLifetimeSource = new CancellationTokenSource();
+            _appLifetime = _appLifetimeSource.Token;
+            _storage = new ProxyStorage();
+            _client = new HttpClient();
+            _client.Timeout = TimeSpan.FromSeconds(scrapeTimeout);
+            _client.DefaultRequestHeaders.UserAgent.ParseAdd(_agent);
+            for (int i = 0; i < CheckTasks; i++)
+            {
+                Task.Run(async () =>
+                {
+                    while (!_appLifetime.IsCancellationRequested)
+                    {
+                        var prox = await _storage.VerificationQueue.Reader.ReadAsync(_appLifetime);
+                        try
+                        {
+                            if (await proxyChecker(prox))
+                            {
+                                _storage.VerifiedProxies.Enqueue(prox);
+                            }
+                            _storage.Proxies.Enqueue(prox);
+                        }
+                        catch
+                        {
+                            
+                        }
+                    }
+                });
+            }
+            for (int i = 0; i < 4; i++)
+            {
+                Task.Run(async () =>
+                {
+                    while (!_appLifetime.IsCancellationRequested)
+                    {
+                        var req = await _storage.DiscoveryQueue.Reader.ReadAsync(_appLifetime);
+                        try
+                        {
+                            req.Callback(await _client.GetStringAsync(req.Url, _appLifetime));
+                        }
+                        catch
+                        {
+                            
+                        }
+                    }
+                });
+            }
+        }
 
         private SemaphoreSlim _semaphoreSlim = new SemaphoreSlim(1, 1);
 
         private volatile bool isAdding = false;
-        
+
         /// <summary>
         /// Start scraping with the configured parameters. Each instance can only have one concurrent scraper.
         /// </summary>
+        /// <param name="scrapeCount">The target number of valid proxies to scrape before exiting</param>
         /// <returns></returns>
-        public async Task<ScrapeResult> ScrapeAsync()
+        public async Task<ScrapeResult> ScrapeAsync(int scrapeCount = Int32.MaxValue)
         {
             await _semaphoreSlim.WaitAsync(_appLifetime);
             Console.WriteLine("Starting to Scrape Proxies... This will take a while.");
@@ -149,12 +221,22 @@ namespace Encodeous.DirtyProxy
             var task = Task.Run(async () =>
             {
                 while (!_appLifetime.IsCancellationRequested && (_storage.VerificationQueue.Reader.Count > 0 ||
-                                                                 _storage.DiscoveryQueue.Reader.Count > 0 || isAdding))
+                                                                 _storage.DiscoveryQueue.Reader.Count > 0 || isAdding) 
+                                                             && _storage.VerifiedProxies.Count < scrapeCount)
                 {
-                    Console.WriteLine(
-                        $"{_storage.VerifiedProxies.Count} valid, {_storage.VerificationQueue.Reader.Count} in queue, {_storage.Proxies.Count} in total.");
+                    if (_isVerifying)
+                    {
+                        Console.WriteLine(
+                            $"{_storage.Proxies.Count - _storage.VerifiedProxies.Count} down, {_storage.VerifiedProxies.Count} online, {_storage.VerificationQueue.Reader.Count} waiting to be verified.");
+                    }
+                    else
+                    {
+                        Console.WriteLine(
+                            $"{_storage.Proxies.Count} proxies discovered");
+                    }
                     await Task.Delay(1000, _appLifetime);
                 }
+                _appLifetimeSource.Cancel();
             }, _appLifetime);
             
             foreach (var src in _proxySources.Distinct())
@@ -189,8 +271,13 @@ namespace Encodeous.DirtyProxy
                 good = true;
                 try
                 {
-                    await _storage.VerificationQueue.Writer.WriteAsync(new IPEndPoint(IPAddress.Parse(match.Value.Split(":")[0]),
-                        int.Parse(match.Value.Split(":")[1])), _appLifetime);
+                    var prox = new IPEndPoint(IPAddress.Parse(match.Value.Split(":")[0]),
+                        int.Parse(match.Value.Split(":")[1]));
+                    if (!_storage.UniqueProxies.ContainsKey(prox))
+                    {
+                        while(!_storage.UniqueProxies.TryAdd(prox, 0)){}
+                        await _storage.VerificationQueue.Writer.WriteAsync(prox, _appLifetime);
+                    }
                 }
                 catch
                 {
@@ -202,13 +289,13 @@ namespace Encodeous.DirtyProxy
             return good;
         }
         
-        private async Task<bool> IsValid(IPEndPoint prox, WebClient wc)
+        private async Task<bool> IsValid(IPEndPoint prox, WebClient wc, double timeout)
         {
             try
             {
                 wc.Headers[HttpRequestHeader.UserAgent] = _agent;
                 wc.Proxy = new WebProxy(prox.Address.ToString(), prox.Port);
-                var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                var cts = new CancellationTokenSource(TimeSpan.FromSeconds(timeout));
                 cts.Token.Register(wc.CancelAsync);
                 var res = await wc.OpenReadTaskAsync(_checkUrl);
                 await res.DisposeAsync();

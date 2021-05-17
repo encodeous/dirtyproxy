@@ -4,15 +4,15 @@
 
 A quick and easy proxy scraper!
 
-*That does not mean it lacks features ;)*
+*That does not mean it lacks features* ;)
 
 ## Features
 
-- High Performance Asynchronous Scraping
+- High-Performance Asynchronous Scraping
 - Highly Configurable
 - Comes with proxy checker
 - Comes with a default list of proxy sites
-- Lightweight (~6% CPU usage on 4-core i7)
+- Lightweight (~6% CPU usage on a 4-core i7)
 - Filter unique proxies
 
 ## Usage
@@ -21,7 +21,7 @@ A quick and easy proxy scraper!
 
 ### Using Default Parameters
 
-```csharp
+```c#
 var scraper = new ProxyScraper(ProxyScraper.DefaultList);
 var proxies = await scraper.ScrapeAsync();
 
@@ -32,7 +32,7 @@ await File.WriteAllLinesAsync("allProxies.txt", proxies.Proxies.Select(x=>x.ToSt
 
 ### Using Custom Proxy Source List
 
-```csharp
+```c#
 var sources = new[]
 {
     "https://source.proxy.list",
@@ -44,9 +44,35 @@ var scraper = new ProxyScraper(sources);
 ...
 ```
 
+### Using Custom Proxy Checker
+
+```c#
+var scraper = new ProxyScraper(ProxyScraper.DefaultList, async proxy =>
+{
+    try
+    {
+        var wc = new WebClient();
+        wc.Proxy = new WebProxy(proxy.ToString());
+        wc.Headers[HttpRequestHeader.UserAgent] = ProxyScraper.DefaultAgent;
+        // timeout in 10 seconds
+        var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        cts.Token.Register(wc.CancelAsync);
+        await wc.OpenReadTaskAsync("https://google.com");
+        cts.Dispose();
+        return true;
+    }
+    catch
+    {
+        return false;
+    }
+});
+
+...
+```
+
 ### Using Custom User Agent
 
-```csharp
+```c#
 // You can use any user agent you want!
 var scraper = new ProxyScraper(ProxyScraper.DefaultList, "Your user agent");
 var proxies = await scraper.ScrapeAsync();
@@ -56,7 +82,7 @@ var proxies = await scraper.ScrapeAsync();
 
 ### Using Custom Request Timeouts
 
-```csharp
+```c#
 var scraper = new ProxyScraper(ProxyScraper.DefaultList, checkTimeout: 5, scrapeTimeout: 2);
 var proxies = await scraper.ScrapeAsync();
 
@@ -66,7 +92,7 @@ var proxies = await scraper.ScrapeAsync();
 
 ### Fast Scraping (Without proxy validation)
 
-```csharp
+```c#
 // Disable proxy checking
 var scraper = new ProxyScraper(ProxyScraper.DefaultList, checkProxies: false);
 var proxies = await scraper.ScrapeAsync();
@@ -76,10 +102,16 @@ var proxies = await scraper.ScrapeAsync();
 
 ### Custom Proxy Check URL
 
-```csharp
+```c#
 // Make sure the proxies can successfully connect to a url
 var scraper = new ProxyScraper(ProxyScraper.DefaultList, checkUrl: "https://google.ca");
 var proxies = await scraper.ScrapeAsync();
 
 ...
+```
+
+### Misc Configuration
+```c#
+// number of tasks for proxy checking (mainly waiting)
+ProxyScraper.CheckTasks = 300;
 ```

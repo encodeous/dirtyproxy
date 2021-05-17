@@ -8,7 +8,7 @@
         <Title>DirtyProxy - Proxy Scraper</Title>
         <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
         <PackageId>Encodeous.DirtyProxy</PackageId>
-        <Version>1.0.2</Version>
+        <Version>1.0.3</Version>
         <Authors>Encodeous</Authors>
         <RepositoryUrl>https://github.com/encodeous/dirtyproxy</RepositoryUrl>
         <PackageProjectUrl>https://github.com/encodeous/dirtyproxy</PackageProjectUrl>

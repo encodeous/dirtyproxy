@@ -8,9 +8,10 @@ namespace Encodeous.DirtyProxy
 {
     public class ProxyStorage
     {
-        public Channel<IPEndPoint> VerificationQueue { get; set; } = Channel.CreateBounded<IPEndPoint>(100);
-        public Channel<DiscoveryWrapper> DiscoveryQueue { get; set; } = Channel.CreateBounded<DiscoveryWrapper>(10);
-        public ConcurrentQueue<IPEndPoint> VerifiedProxies { get; set; } = new();
-        public ConcurrentQueue<IPEndPoint> Proxies { get; set; } = new();
+        internal Channel<IPEndPoint> VerificationQueue { get; set; } = Channel.CreateBounded<IPEndPoint>(1000);
+        internal ConcurrentDictionary<IPEndPoint, byte> UniqueProxies { get; set; } = new();
+        internal Channel<DiscoveryWrapper> DiscoveryQueue { get; set; } = Channel.CreateBounded<DiscoveryWrapper>(100);
+        internal ConcurrentQueue<IPEndPoint> VerifiedProxies { get; set; } = new();
+        internal ConcurrentQueue<IPEndPoint> Proxies { get; set; } = new();
     }
 }
