@@ -66,6 +66,7 @@ namespace Encodeous.DirtyProxy
         private string[] _proxySources;
         private string _checkUrl, _agent;
         private bool _isVerifying;
+        private double _checkTimeout = 10;
 
         /// <summary>
         /// Configure a new Proxy Scraper
@@ -77,8 +78,9 @@ namespace Encodeous.DirtyProxy
         /// <param name="scrapeTimeout">Timeout (seconds) for each proxy source</param>
         /// <param name="checkTimeout">Timeout (seconds) for each proxy check request</param>
         public ProxyScraper(string[] sources, string userAgent = DefaultAgent,
-            bool checkProxies = true, string checkUrl = "http://www.youtube.com", double scrapeTimeout = 5, double checkTimeout = 10)
+            bool checkProxies = true, string checkUrl = "http://www.youtube.com", double scrapeTimeout = 5, double checkTimeout = 5)
         {
+            _checkTimeout = checkTimeout;
             _isVerifying = checkProxies;
             _checkUrl = checkUrl;
             _agent = userAgent;
@@ -91,51 +93,11 @@ namespace Encodeous.DirtyProxy
             _client.DefaultRequestHeaders.UserAgent.ParseAdd(_agent);
             if (checkProxies)
             {
-                for (int i = 0; i < CheckTasks; i++)
-                {
-                    Task.Run(async () =>
-                    {
-                        var wc = new WebClient();
-                        while (!_appLifetime.IsCancellationRequested)
-                        {
-                            var prox = await _storage.VerificationQueue.Reader.ReadAsync(_appLifetime);
-                            if (await IsValid(prox, wc, scrapeTimeout))
-                            {
-                                _storage.VerifiedProxies.Enqueue(prox);
-                            }
-                            _storage.Proxies.Enqueue(prox);
-                        }
-                    });
-                }
+                StartTasks(IsValid);
             }
             else
             {
-                Task.Run(async () =>
-                {
-                    while (!_appLifetime.IsCancellationRequested)
-                    {
-                        var prox = await _storage.VerificationQueue.Reader.ReadAsync(_appLifetime);
-                        _storage.Proxies.Enqueue(prox);
-                    }
-                });
-            }
-            for (int i = 0; i < 4; i++)
-            {
-                Task.Run(async () =>
-                {
-                    while (!_appLifetime.IsCancellationRequested)
-                    {
-                        var req = await _storage.DiscoveryQueue.Reader.ReadAsync(_appLifetime);
-                        try
-                        {
-                            req.Callback(await _client.GetStringAsync(req.Url, _appLifetime));
-                        }
-                        catch
-                        {
-                            
-                        }
-                    }
-                });
+                StartTasks(null);
             }
         }
         
@@ -157,25 +119,44 @@ namespace Encodeous.DirtyProxy
             _client = new HttpClient();
             _client.Timeout = TimeSpan.FromSeconds(scrapeTimeout);
             _client.DefaultRequestHeaders.UserAgent.ParseAdd(_agent);
-            for (int i = 0; i < CheckTasks; i++)
+            StartTasks(proxyChecker);
+        }
+
+        private void StartTasks(Func<IPEndPoint, ValueTask<bool>> proxyChecker)
+        {
+            if (proxyChecker is not null)
+            {
+                for (int i = 0; i < CheckTasks; i++)
+                {
+                    Task.Run(async () =>
+                    {
+                        while (!_appLifetime.IsCancellationRequested)
+                        {
+                            var prox = await _storage.VerificationQueue.Reader.ReadAsync(_appLifetime);
+                            try
+                            {
+                                if (await proxyChecker(prox))
+                                {
+                                    _storage.VerifiedProxies.Enqueue(prox);
+                                }
+                                _storage.Proxies.Enqueue(prox);
+                            }
+                            catch
+                            {
+                            
+                            }
+                        }
+                    });
+                }
+            }
+            else
             {
                 Task.Run(async () =>
                 {
                     while (!_appLifetime.IsCancellationRequested)
                     {
                         var prox = await _storage.VerificationQueue.Reader.ReadAsync(_appLifetime);
-                        try
-                        {
-                            if (await proxyChecker(prox))
-                            {
-                                _storage.VerifiedProxies.Enqueue(prox);
-                            }
-                            _storage.Proxies.Enqueue(prox);
-                        }
-                        catch
-                        {
-                            
-                        }
+                        _storage.Proxies.Enqueue(prox);
                     }
                 });
             }
@@ -289,13 +270,17 @@ namespace Encodeous.DirtyProxy
             return good;
         }
         
-        private async Task<bool> IsValid(IPEndPoint prox, WebClient wc, double timeout)
+        private async ValueTask<bool> IsValid(IPEndPoint prox)
         {
             try
             {
+                WebClient wc = new();
                 wc.Headers[HttpRequestHeader.UserAgent] = _agent;
-                wc.Proxy = new WebProxy(prox.Address.ToString(), prox.Port);
-                var cts = new CancellationTokenSource(TimeSpan.FromSeconds(timeout));
+                wc.Proxy = new WebProxy()
+                {
+                    Address = new Uri($"http://{prox.Address}:{prox.Port}"),
+                };
+                var cts = new CancellationTokenSource(TimeSpan.FromSeconds(_checkTimeout));
                 cts.Token.Register(wc.CancelAsync);
                 var res = await wc.OpenReadTaskAsync(_checkUrl);
                 await res.DisposeAsync();
@@ -303,7 +288,24 @@ namespace Encodeous.DirtyProxy
             }
             catch
             {
-                return false;
+                try
+                {
+                    WebClient wc = new();
+                    wc.Headers[HttpRequestHeader.UserAgent] = _agent;
+                    wc.Proxy = new WebProxy()
+                    {
+                        Address = new Uri($"socks5://{prox.Address}:{prox.Port}"),
+                    };
+                    var cts = new CancellationTokenSource(TimeSpan.FromSeconds(_checkTimeout));
+                    cts.Token.Register(wc.CancelAsync);
+                    var res = await wc.OpenReadTaskAsync(_checkUrl);
+                    await res.DisposeAsync();
+                    return true;
+                }
+                catch
+                {
+                    return false;
+                }
             }
         }
         
